@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meine Karte</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #fff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 24px;
+            margin-bottom: 0;
+            flex: 1;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 8px 15px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        #status {
+            padding: 12px 15px;
+            background: #ecf0f1;
+            border-bottom: 1px solid #bdc3c7;
+            font-size: 14px;
+            color: #2c3e50;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+        }
+
+        #map {
+            flex: 1;
+            width: 100%;
+        }
+
+        /* LOADING SCREEN */
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease-out;
+        }
+
+        #loadingScreen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loadingBox {
+            background: white;
+            width: 80%;
+            max-width: 280px;
+            padding: 30px 20px;
+            border: 6px solid #000;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .loadingBox h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        .progressContainer {
+            background: #e0e0e0;
+            height: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #333;
+            margin-bottom: 15px;
+        }
+
+        .progressBar {
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            height: 100%;
+            width: 0%;
+            animation: loading 6s ease-in-out forwards;
+            border-radius: 8px;
+        }
+
+        @keyframes loading {
+            0% { width: 10%; }
+            50% { width: 60%; }
+            100% { width: 95%; }
+        }
+
+        .loadingText {
+            color: #666;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        /* MODAL */
+        #modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        #modal.show {
+            display: flex;
+        }
+
+        .modalContent {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modalContent h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        .formGroup {
+            margin-bottom: 15px;
+        }
+
+        .formGroup label {
+            display: block;
+            margin-bottom: 5px;
+            color: #2c3e50;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .formGroup input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #bdc3c7;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .formGroup input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
+
+        .modalButtons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modalButtons button {
+            flex: 1;
+            padding: 10px;
+        }
+
+        .modalButtons button.cancel {
+            background: #95a5a6;
+        }
+
+        .modalButtons button.cancel:hover {
+            background: #7f8c8d;
+        }
+
+        .modalButtons button.save {
+            background: #27ae60;
+        }
+
+        .modalButtons button.save:hover {
+            background: #229954;
+        }
+
+        @media (min-width: 768px) {
+            header h1 {
+                font-size: 28px;
+            }
+
+            #status {
+                font-size: 16px;
+                padding: 15px 20px;
+            }
+
+            .loadingBox {
+                width: 350px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- LOADING SCREEN -->
+    <div id="loadingScreen">
+        <div class="loadingBox">
+            <h2>Wird geladen...</h2>
+            <div class="progressContainer">
+                <div class="progressBar"></div>
+            </div>
+            <p class="loadingText">Standort wird aktualisiert</p>
+        </div>
+    </div>
+
+    <!-- KOORDINATEN-MODAL -->
+    <div id="modal">
+        <div class="modalContent">
+            <h2>📍 Blauen Pin bearbeiten</h2>
+            <div class="formGroup">
+                <label for="latInput">Latitude:</label>
+                <input type="number" id="latInput" step="0.0001" placeholder="z.B. 51.0522583">
+            </div>
+            <div class="formGroup">
+                <label for="lngInput">Longitude:</label>
+                <input type="number" id="lngInput" step="0.0001" placeholder="z.B. 13.9009817">
+            </div>
+            <div class="modalButtons">
+                <button class="cancel" onclick="closeModal()">Abbrechen</button>
+                <button class="save" onclick="saveBlueMarker()">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <header>
+        <h1>📍 Meine Karte</h1>
+        <div class="header-buttons">
+            <button onclick="repeateZoomSequence()">🔄 Zoom</button>
+            <button onclick="openModal()">✏️ Bearbeiten</button>
+        </div>
+    </header>
+    <div id="status">⏳ Standort wird ermittelt...</div>
+    <div id="map"></div>
+
+    <script>
+        // Flags
+        let geolocationSuccess = false;
+        let zoomSequenceDone = false;
+        let watchId = null;
+
+        // Karte initialisieren
+        const map = L.map('map').setView([51.5, 10], 7);
+
+        // Kartenkacheln
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap',
+            maxZoom: 19,
+            minZoom: 2
+        }).addTo(map);
+
+        // Marker-Variablen
+        let orangeMarker = null;
+        let blueMarker = null;
+        let blueMarkerLocation = [51.0522583, 13.9009817];
+
+        // Funktion: Blauen Pin erstellen/aktualisieren
+        function createBlueMarker() {
+            if (blueMarker) {
+                map.removeLayer(blueMarker);
+            }
+
+            blueMarker = L.marker(blueMarkerLocation, {
+                icon: L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34]
+                })
+            }).addTo(map).bindPopup(`<b>Fester Standort</b><br>Lat: ${blueMarkerLocation[0].toFixed(4)}<br>Lng: ${blueMarkerLocation[1].toFixed(4)}`);
+        }
+
+        // Initialer blauer Pin
+        createBlueMarker();
+
+        // Funktion: Zoom-Sequenz wiederholen
+        function repeateZoomSequence() {
+            if (!geolocationSuccess) {
+                alert('Bitte warte bis der Standort geladen ist!');
+                return;
+            }
+
+            const orangeLocation = [orangeMarker.getLatLng().lat, orangeMarker.getLatLng().lng];
+
+            // 1. Zoom zum blauen Pin
+            map.setView(blueMarkerLocation, 13, { animate: true, duration: 1 });
+
+            // 2. Nach 2 Sekunden: Zoom zum orangenen Pin
+            setTimeout(() => {
+                map.setView(orangeLocation, 13, { animate: true, duration: 1 });
+            }, 2000);
+        }
+
+        // Modal-Funktionen
+        function openModal() {
+            document.getElementById('latInput').value = blueMarkerLocation[0];
+            document.getElementById('lngInput').value = blueMarkerLocation[1];
+            document.getElementById('modal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('show');
+        }
+
+        function saveBlueMarker() {
+            const lat = parseFloat(document.getElementById('latInput').value);
+            const lng = parseFloat(document.getElementById('lngInput').value);
+
+            if (isNaN(lat) || isNaN(lng)) {
+                alert('Bitte geben Sie gültige Koordinaten ein!');
+                return;
+            }
+
+            blueMarkerLocation[0] = lat;
+            blueMarkerLocation[1] = lng;
+
+            createBlueMarker();
+            closeModal();
+            alert('Blauen Pin aktualisiert!');
+        }
+
+        // Funktion zum Verstecken der Loading Screen
+        function hideLoadingScreen() {
+            document.getElementById('loadingScreen').classList.add('hidden');
+        }
+
+        // LOADING SCREEN nach Maximum 6 Sekunden entfernen (als Fallback)
+        const loadingTimeout = setTimeout(hideLoadingScreen, 6000);
+
+        // GEOLOCATION - LIVE UPDATES
+        if (navigator.geolocation) {
+            watchId = navigator.geolocation.watchPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+                    
+                    // Beim ersten erfolgreichen Standort: Loading Screen entfernen & Zoom-Sequenz starten
+                    if (!geolocationSuccess) {
+                        geolocationSuccess = true;
+                        clearTimeout(loadingTimeout);
+                        hideLoadingScreen();
+
+                        // EINMALIGE ZOOM-SEQUENZ
+                        if (!zoomSequenceDone) {
+                            zoomSequenceDone = true;
+
+                            // 1. Zoom zum blauen Pin
+                            map.setView(blueMarkerLocation, 13, { animate: true, duration: 1 });
+
+                            // 2. Nach 2 Sekunden: Zoom zum orangenen Pin (aktuellem Standort)
+                            setTimeout(() => {
+                                map.setView([lat, lng], 13, { animate: true, duration: 1 });
+                            }, 2000);
+                        }
+                    }
+                    
+                    // Wenn orangener Pin existiert, entfernen
+                    if (orangeMarker) {
+                        map.removeLayer(orangeMarker);
+                    }
+                    
+                    // Neuen orangenen Pin hinzufügen (aber KEINE Karten-Bewegung)
+                    orangeMarker = L.marker([lat, lng], {
+                        icon: L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41],
+                            popupAnchor: [1, -34]
+                        })
+                    }).addTo(map).bindPopup(`<b>Dein Standort</b><br>Genauigkeit: ${Math.round(accuracy)}m`);
+
+                    // Status aktualisieren
+                    document.getElementById('status').innerHTML = 
+                        `✓ Standort aktualisiert: ${lat.toFixed(4)}, ${lng.toFixed(4)} (Genauigkeit: ${Math.round(accuracy)}m)`;
+                },
+                function(error) {
+                    // Bei Fehler auch Loading Screen entfernen
+                    clearTimeout(loadingTimeout);
+                    hideLoadingScreen();
+                    document.getElementById('status').innerHTML = `✗ Fehler: ${error.message}`;
+                },
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 5000
+                }
+            );
+        } else {
+            clearTimeout(loadingTimeout);
+            hideLoadingScreen();
+            document.getElementById('status').innerHTML = '✗ Geolocation wird nicht unterstützt';
+        }
+
+        // Modal mit ESC schließen
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>
